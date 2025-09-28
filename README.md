@@ -7,6 +7,8 @@ A tiny, pragmatic navigation layer for SwiftUI that:
 - Supports **programmatic** `push / pop / popToRoot / replaceStack`.
 - Plays nicely with Swift Concurrency and `@MainActor`.
 
+https://github.com/user-attachments/assets/c2e88898-d7f4-4b96-a2ce-de827d0a3d8c
+
 > On iOS 16+, screens are presented **over a root view** using `NavigationStack`. On iOS 13–15, SwiftUI screens are hosted in `UIHostingController` and pushed via `UINavigationController`.
 
 ---
