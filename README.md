@@ -44,7 +44,7 @@ let package = Package(
         .iOS(.v13)
     ],
     dependencies: [
-        .package(url: "https://github.com/AriestaAgung/OHNavigationKit", from: "1.0.2")
+        .package(url: "https://github.com/AriestaAgung/OHNavigationKit", from: "1.0.1")
     ],
     targets: [
         .target(
