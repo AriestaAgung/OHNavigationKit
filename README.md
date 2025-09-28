@@ -14,7 +14,7 @@ A tiny, pragmatic navigation layer for SwiftUI that:
 ## Requirements
 
 - iOS **13** – iOS **26**
-- Swift **5.9+** (Swift 6–ready; route registration is `@MainActor`)
+- Swift **5.4+** (Swift 6–ready; route registration is `@MainActor`)
 - Xcode **15+**
 
 ---
@@ -26,7 +26,7 @@ A tiny, pragmatic navigation layer for SwiftUI that:
 1. **File ▸ Add Package Dependencies…**
 2. Enter the package URL:
    ```text
-   https://github.com/your-org/OHNavigationKit
+   https://github.com/AriestaAgung/OHNavigationKit
    ```
 3. Choose a version rule (tag/branch) and add it to your app target.
 
@@ -42,7 +42,7 @@ let package = Package(
         .iOS(.v13)
     ],
     dependencies: [
-        .package(url: "https://github.com/your-org/OHNavigationKit", from: "0.1.0")
+        .package(url: "https://github.com/AriestaAgung/OHNavigationKit", from: "0.1.0")
     ],
     targets: [
         .target(
@@ -203,7 +203,7 @@ Yes. The `FeatureRoute` push overload calls `ensureRegistered()` before pushing,
 
 ## License
 
-MIT (or your chosen license).
+MIT.
 
 ---
 
