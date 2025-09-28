@@ -7,30 +7,31 @@
 
 import Foundation
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#endif
 
 public final class RouteRegistry {
     public static let shared = RouteRegistry()
     private init() {}
-    
-    // Codable adapters (unchanged)
+
+    // MARK: - Codable adapters
     public typealias _Enc = (AnyHashable, Encoder) throws -> Void
     public typealias _Dec = (Decoder) throws -> AnyHashable
     private var encoders: [String: _Enc] = [:]
     private var decoders: [String: _Dec] = [:]
-    
-    // Two distinct builder stores
-    // Use typealiases to avoid parser confusion with attributes in collection types.
-    typealias MainBuilder   = @MainActor (AnyHashable) -> AnyView     // can call @MainActor APIs
-    typealias NonMainBuilder =            (AnyHashable) -> AnyView     // must NOT call @MainActor APIs
-    
+
+    // MARK: - View builders
+    typealias MainBuilder    = @MainActor (AnyHashable) -> AnyView
+    typealias NonMainBuilder =            (AnyHashable) -> AnyView
     private var mainBuilders:    [String: MainBuilder]    = [:]
     private var nonMainBuilders: [String: NonMainBuilder] = [:]
-    
-    // One-time registration bookkeeping (thread-safe)
+
+    // MARK: - Optional per-type nav styles
+    private var styles: [String: OHNavStyle] = [:]
+
+    // MARK: - One-time registration
     private var registeredTypeIDs = Set<ObjectIdentifier>()
-    private let lock = NSLock()
-    
-    /// Ensure a feature’s registerRoutes() runs exactly once per concrete route type.
     @MainActor
     public func ensureRegistered<R: Hashable & Codable>(
         _ type: R.Type,
@@ -41,17 +42,16 @@ public final class RouteRegistry {
             register()
         }
     }
-    
-    // MARK: Register APIs
-    
-    /// Register a builder that **runs on the main actor** (safe to create @MainActor view models, etc).
+
+    // MARK: - Register APIs
+
     @MainActor
     public func registerMain<R: Hashable & Codable>(
         _ type: R.Type,
+        style: OHNavStyle? = nil,
         builder: @escaping @MainActor (R) -> AnyView
     ) {
         let id = String(reflecting: R.self)
-        
         mainBuilders[id] = { any in
             #if DEBUG
             guard let typed = any as? R else {
@@ -63,19 +63,17 @@ public final class RouteRegistry {
             return builder(any as! R)
             #endif
         }
-        
+        if let s = style { styles[id] = s }
         encoders[id] = { any, enc in try (any as! R).encode(to: enc) }
         decoders[id] = { dec in AnyHashable(try R(from: dec)) }
     }
-    
-    /// Register a builder that **is NOT main-actor isolated**.
-    /// Only use when the closure doesn’t touch @MainActor APIs (no UI/view-model inits marked @MainActor).
+
     public func registerNonMain<R: Hashable & Codable>(
         _ type: R.Type,
+        style: OHNavStyle? = nil,
         builder: @escaping (R) -> AnyView
     ) {
         let id = String(reflecting: R.self)
-        
         nonMainBuilders[id] = { any in
             #if DEBUG
             guard let typed = any as? R else {
@@ -87,14 +85,13 @@ public final class RouteRegistry {
             return builder(any as! R)
             #endif
         }
-        
+        if let s = style { styles[id] = s }
         encoders[id] = { any, enc in try (any as! R).encode(to: enc) }
         decoders[id] = { dec in AnyHashable(try R(from: dec)) }
     }
-    
-    // MARK: Lookup
-    
-    /// Build the view for a route. Called from the router on the main actor.
+
+    // MARK: - Lookup
+
     @MainActor
     public func view(for route: AnyRoute) -> AnyView? {
         if let main = mainBuilders[route.typeID] {
@@ -105,22 +102,76 @@ public final class RouteRegistry {
         }
         return nil
     }
-    
+
+    public func style(for route: AnyRoute) -> OHNavStyle? {
+        styles[route.typeID]
+    }
+
+    @MainActor
+    public func title(for route: AnyRoute) -> String? {
+        styles[route.typeID]?.title(route)
+    }
+
     public func encoder(for typeID: String) -> _Enc? { encoders[typeID] }
     public func decoder(for typeID: String) -> _Dec? { decoders[typeID] }
+}
+
+// MARK: - Per-route navigation style
+
+public struct OHNavStyle {
+    public var title: (AnyRoute) -> String?
+    public var prefersLargeTitles: Bool
+    #if canImport(UIKit)
+    public var backgroundColor: UIColor?
+    public var titleColor: UIColor?
+    public var tintColor: UIColor?
+    #endif
+    public var backAction: ((AnyRoute) -> Bool)?
+
+    public init(
+        title: @escaping (AnyRoute) -> String? = { _ in nil },
+        prefersLargeTitles: Bool = false,
+        backgroundColor: UIColor? = nil,
+        titleColor: UIColor? = nil,
+        tintColor: UIColor? = nil,
+        backAction: ((AnyRoute) -> Bool)? = nil
+    ) {
+        self.title = title
+        self.prefersLargeTitles = prefersLargeTitles
+        self.backgroundColor = backgroundColor
+        self.titleColor = titleColor
+        self.tintColor = tintColor
+        self.backAction = backAction
+    }
+}
+
+// MARK: - AnyRoute builder (applies title only in SwiftUI; colors handled by LegacyEngine)
+
+private struct _OHNavTitleModifier: ViewModifier {
+    let title: String?
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if let t = title {
+            if #available(iOS 14, *) {
+                content.navigationTitle(t)
+            } else {
+                content
+            }
+        } else {
+            content
+        }
+    }
 }
 
 public let AnyRouteBuilder: OHRouteViewBuilder<AnyRoute> = { any in
     #if DEBUG
     if RouteRegistry.shared.view(for: any) == nil {
-        assertionFailure("OHNavigationKit: Unregistered route: \(any.typeID). " +
-                         "Did you push AnyRoute directly or forget to register?")
+        assertionFailure("OHNavigationKit: Unregistered route: \(any.typeID).")
         return AnyView(Text("Missing view for \(any.typeID)"))
-    } else {
-        print("ASDASDAS")
-        dump(RouteRegistry.shared.view(for: any))
     }
     #endif
-    return RouteRegistry.shared.view(for: any) ?? AnyView(EmptyView())
-}
 
+    let base = RouteRegistry.shared.view(for: any) ?? AnyView(EmptyView())
+    let titled = base.modifier(_OHNavTitleModifier(title: RouteRegistry.shared.title(for: any)))
+    return AnyView(titled)
+}

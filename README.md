@@ -5,11 +5,11 @@ A tiny, pragmatic navigation layer for SwiftUI that:
 - Uses **`NavigationStack`** on iOS 16+ and a **UIKit bridge** on iOS 13–15.
 - Lets features **self‑register** their routes (no giant `@main` switchboard).
 - Supports **programmatic** `push / pop / popToRoot / replaceStack`.
-- Plays nicely with Swift Concurrency and `@MainActor`.
+- Keeps UI work on the **main actor** (Swift 6–ready).
 
 https://github.com/user-attachments/assets/c2e88898-d7f4-4b96-a2ce-de827d0a3d8c
-
-> On iOS 16+, screens are presented **over a root view** using `NavigationStack`. On iOS 13–15, SwiftUI screens are hosted in `UIHostingController` and pushed via `UINavigationController`.
+> On iOS 16+, screens are presented **over a root view** using `NavigationStack`.
+> On iOS 13–15, SwiftUI screens are hosted in `UIHostingController` and pushed via `UINavigationController`.
 
 ---
 
@@ -44,7 +44,7 @@ let package = Package(
         .iOS(.v13)
     ],
     dependencies: [
-        .package(url: "https://github.com/AriestaAgung/OHNavigationKit", from: "0.1.0")
+        .package(url: "https://github.com/AriestaAgung/OHNavigationKit", from: "1.0.2")
     ],
     targets: [
         .target(
@@ -67,7 +67,7 @@ import OHNavigationKit
 
 ## Quick Start
 
-### 1) Bootstrap the router once at the root
+### 1) Mount the router once at the root
 
 ```swift
 import SwiftUI
@@ -88,7 +88,7 @@ struct MyApp: App {
 
 > Keep **one** navigation container at the root. Avoid nesting `NavigationStack`/`NavigationView` inside destinations.
 
-### 2) Define a feature route that self‑registers
+### 2) Define a feature route & register its builder)
 
 ```swift
 enum TopCoinRoute: Hashable, Codable, FeatureRoute {
@@ -108,10 +108,10 @@ enum TopCoinRoute: Hashable, Codable, FeatureRoute {
 }
 ```
 
-- Use `registerMain` for builders that create UI or `@MainActor` view models.
-- Prefer `@StateObject` inside the destination view when the view **owns** its view model.
+> Use `registerMain` when your builder touches `@MainActor` things (views/view models).
+> Use `registerNonMain` only for non-UI builders.
 
-### 3) Push from anywhere in your SwiftUI view tree
+### 3) Navigate
 
 ```swift
 struct ContentView: View {
@@ -137,6 +137,47 @@ router.replaceStack(with: [TopCoinRoute.newsList(symbol: "ETH")])
 
 ---
 
+## Titles & Styling
+
+### iOS 16+
+- OHNavigationKit **automatically** applies route titles via `.navigationTitle`.
+- For **bar colors / material**, style **inside your destination view**:
+  ```swift
+  var body: some View {
+    List { … }
+      .navigationTitle("BTC News")
+      .toolbarBackground(.visible, for: .navigationBar)
+      .toolbarBackground(Color.indigo, for: .navigationBar)
+      .toolbarColorScheme(.light, for: .navigationBar)
+  }
+  ```
+
+### iOS 13–15
+- The legacy engine supports **full-color** bars and **custom back** by registering an optional `OHNavStyle` with your route:
+  ```swift
+  let style = OHNavStyle(
+    title: { any in
+      if case let .newsList(s) = any.base as? TopCoinRoute { return "\(s) News" }
+      return nil
+    },
+    prefersLargeTitles: false,
+    backgroundColor: .systemIndigo,
+    titleColor: .white,
+    tintColor: .white,
+    backAction: { any in
+      // return true to consume back (e.g. confirm dialog), false to allow pop
+      return false
+    }
+  )
+
+  RouteRegistry.shared.registerMain(TopCoinRoute.self, style: style) { route in … }
+  ```
+
+> In v1.0.2, SwiftUI bar color is **not auto-applied by the library** (to avoid compiler ambiguity).
+> Apply SwiftUI toolbar styling within the destination view as shown above.
+
+---
+
 ## Destination View Ownership Pattern
 
 When the destination **creates** its view model, make the view **own** it with `@StateObject`:
@@ -148,7 +189,6 @@ struct NewsView: View {
   init(viewModel: @autoclosure @escaping () -> NewsViewModel) {
     _vm = StateObject(wrappedValue: viewModel())
   }
-
   var body: some View {
     List(vm.articles) { article in
       Text(article.title)
@@ -188,8 +228,8 @@ struct NewsView: View {
 - Verify the router is injected once at the root via `.environmentObject(router)`.
 - If the destination owns its VM, use `@StateObject` (not `@ObservedObject`).
 
-**Back gesture not working or odd pops**
-- Don’t nest navigation containers inside destinations. Keep one stack at the root.
+**Back gesture oddities (legacy)**
+- If you intercept back with a custom `backAction`, confirm you still want to allow the swipe gesture. The legacy engine respects your `backAction` to block/allow swipe.
 
 ---
 
