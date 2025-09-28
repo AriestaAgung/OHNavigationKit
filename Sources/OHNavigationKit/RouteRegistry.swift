@@ -8,38 +8,6 @@
 import Foundation
 import SwiftUI
 
-// AnyRoute + registry (from earlier sketches)
-public struct AnyRoute: Hashable, Codable {
-    let box: AnyHashable
-    let typeID: String
-    
-    public init<R: Hashable & Codable>(_ value: R) {
-        self.box = AnyHashable(value)
-        self.typeID = String(reflecting: R.self)
-    }
-    
-    enum CodingKeys: String, CodingKey { case type, payload }
-    
-    public func encode(to encoder: Encoder) throws {
-        var c = encoder.container(keyedBy: CodingKeys.self)
-        try c.encode(typeID, forKey: .type)
-        guard let enc = RouteRegistry.shared.encoder(for: typeID) else {
-            throw EncodingError.invalidValue(self, .init(codingPath: encoder.codingPath, debugDescription: "No encoder for \(typeID)"))
-        }
-        try enc(box, c.superEncoder(forKey: .payload))
-    }
-    
-    public init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        let t = try c.decode(String.self, forKey: .type)
-        guard let dec = RouteRegistry.shared.decoder(for: t) else {
-            throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "No decoder for \(t)"))
-        }
-        self.box = try dec(c.superDecoder(forKey: .payload))
-        self.typeID = t
-    }
-}
-
 public final class RouteRegistry {
     public static let shared = RouteRegistry()
     private init() {}
@@ -156,9 +124,3 @@ public let AnyRouteBuilder: OHRouteViewBuilder<AnyRoute> = { any in
     return RouteRegistry.shared.view(for: any) ?? AnyView(EmptyView())
 }
 
-// Convenience on the router
-@available(*, deprecated, message: "Use push(_: FeatureRoute) so routes auto-register.")
-public extension OHRouter where Route == AnyRoute {
-    func push<R: Hashable & Codable>(_ r: R) { push(AnyRoute(r)) }
-    func replaceStack<R: Hashable & Codable>(with rs: [R]) { replaceStack(with: rs.map(AnyRoute.init)) }
-}

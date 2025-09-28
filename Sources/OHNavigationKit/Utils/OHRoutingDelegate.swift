@@ -27,6 +27,5 @@ public protocol OHRouteRenderer {
     @ViewBuilder func view(for route: Route) -> AnyView
 }
 
-
 //public typealias OHRouteViewBuilder<Route> = (_ route: Route) -> AnyView
 public typealias OHRouteViewBuilder<Route> = @MainActor (_ route: Route) -> AnyView

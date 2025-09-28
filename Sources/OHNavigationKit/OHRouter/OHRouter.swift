@@ -147,45 +147,6 @@ public final class OHRouter<Route: Hashable & Codable>: ObservableObject, OHRout
     #endif
 }
 
-public extension OHRouter where Route == AnyRoute {
-  @MainActor
-  func push<R: FeatureRoute>(_ route: R) {
-    R.ensureRegistered()           // 🔑 make sure builder/encoders exist
-    push(AnyRoute(route))
-  }
-
-  @MainActor
-  func replaceStack<R: FeatureRoute>(with routes: [R]) {
-    if let first = routes.first { type(of: first).ensureRegistered() }
-    replaceStack(with: routes.map(AnyRoute.init))
-  }
-
-  @MainActor
-  func setRoot<R: FeatureRoute>(_ route: R, children: [R] = []) {
-    R.ensureRegistered()
-    setRoot(AnyRoute(route), children: children.map(AnyRoute.init))
-  }
-}
-
-// MARK: - iOS 16+ SwiftUI engine
-@available(iOS 16, *)
-@MainActor
-final class StackEngine<Route: Hashable & Codable>: ObservableObject {
-    @Published var path = NavigationPath()
-    private let builder: OHRouteViewBuilder<Route>
-
-    init(builder: @escaping OHRouteViewBuilder<Route>) {
-        self.builder = builder
-    }
-
-    func push(_ route: Route) { path.append(route) }
-    func pop() { if path.count > 0 { path.removeLast() } }
-    func popToRoot() { path = NavigationPath() }
-    func replaceStack(with routes: [Route]) { path = NavigationPath(routes) }
-
-    @ViewBuilder
-    func destination(for route: Route) -> some View { builder(route) }
-}
 
 @available(iOS 16, *)
 struct StackRootView<Route: Hashable & Codable>: View {
@@ -203,61 +164,6 @@ struct StackRootView<Route: Hashable & Codable>: View {
     }
 }
 
-// MARK: - iOS 13–15 UIKit engine
-#if canImport(UIKit)
-@MainActor
-final class LegacyEngine<Route: Hashable & Codable>: NSObject, ObservableObject {
-    private lazy var nav = UINavigationController() // UIKit must stay on main thread.
-    private let builder: OHRouteViewBuilder<Route>
-    private let envWrap: (AnyView) -> AnyView
-    
-    
-    init(builder: @escaping OHRouteViewBuilder<Route>,
-         envWrap: @escaping (AnyView) -> AnyView) {
-        self.builder = builder
-        self.envWrap = envWrap
-        super.init()
-    }
-    
-    @ViewBuilder
-    func mountRoot(_ rootContent: @escaping () -> AnyView) -> some View {
-        LegacyNavContainer {
-            let rootVC = UIHostingController(rootView: self.envWrap(rootContent()))
-            self.nav.setViewControllers([rootVC], animated: false)
-            return self.nav
-        }
-    }
-    
-    func push(_ route: Route) {
-        nav.pushViewController(makeVC(for: route), animated: true)
-    }
-    
-    func pop() { _ = nav.popViewController(animated: true) }
-    
-    func popToRoot() { _ = nav.popToRootViewController(animated: true) }
-    
-    func replaceStack(with routes: [Route], rootContent: (() -> AnyView)) {
-        var vcs: [UIViewController] = [UIHostingController(rootView: rootContent())]
-        vcs.append(contentsOf: routes.map(makeVC(for:)))
-        nav.setViewControllers(vcs, animated: false)
-    }
-    
-    func setRoot(_ route: Route, children: [Route]) {
-        let vcs = [makeVC(for: route)] + children.map(makeVC(for:))
-        nav.setViewControllers(vcs, animated: false)
-    }
-    
-    private func makeVC(for route: Route) -> UIViewController {
-        UIHostingController(rootView: envWrap(builder(route)))
-    }
-}
 
-@MainActor
-private struct LegacyNavContainer: UIViewControllerRepresentable {
-    let provider: () -> UINavigationController
-    init(_ provider: @escaping () -> UINavigationController) { self.provider = provider }
 
-    func makeUIViewController(context: Context) -> UIViewController { provider() }
-    func updateUIViewController(_ uiViewController: UIViewController, context: Context) {}
-}
-#endif
+

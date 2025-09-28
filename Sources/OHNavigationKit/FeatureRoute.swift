@@ -11,7 +11,6 @@ public protocol FeatureRoute: Hashable & Codable {
 
 public extension FeatureRoute {
     /// One-time registration for this concrete route type.
-    
     @MainActor static func ensureRegistered() {
         RouteRegistry.shared.ensureRegistered(Self.self, self.registerRoutes)
     }
