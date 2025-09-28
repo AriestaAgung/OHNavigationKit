@@ -35,26 +35,9 @@ https://github.com/user-attachments/assets/c2e88898-d7f4-4b96-a2ce-de827d0a3d8c
 ### Or add in `Package.swift` (for libraries/workspaces)
 
 ```swift
-// swift-tools-version: 5.9
-import PackageDescription
-
-let package = Package(
-    name: "YourApp",
-    platforms: [
-        .iOS(.v13)
-    ],
-    dependencies: [
+dependencies: [
         .package(url: "https://github.com/AriestaAgung/OHNavigationKit", from: "1.0.1")
-    ],
-    targets: [
-        .target(
-            name: "YourApp",
-            dependencies: [
-                .product(name: "OHNavigationKit", package: "OHNavigationKit")
-            ]
-        )
     ]
-)
 ```
 
 Then import where needed:
