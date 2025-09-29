@@ -17,7 +17,7 @@ final class StackRouterTests: XCTestCase {
     
     
     @MainActor func testPushPop() {
-        let router = StackRouter<R>(root: .home) { route in
+        let router = StackRouter<R>() { route in
             switch route {
             case .home: return Text("Home").eraseToAnyView()
             case .detail(let i): return Text("Detail\\(i)").eraseToAnyView()

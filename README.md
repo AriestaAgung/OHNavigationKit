@@ -36,7 +36,7 @@ https://github.com/user-attachments/assets/c2e88898-d7f4-4b96-a2ce-de827d0a3d8c
 
 ```swift
 dependencies: [
-        .package(url: "https://github.com/AriestaAgung/OHNavigationKit", from: "1.0.1")
+        .package(url: "https://github.com/AriestaAgung/OHNavigationKit", from: "1.0.2")
     ]
 ```
 

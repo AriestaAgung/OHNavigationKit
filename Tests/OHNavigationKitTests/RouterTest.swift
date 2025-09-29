@@ -17,7 +17,7 @@ final class LegacyRouterTests: XCTestCase {
     
     @MainActor func testReplaceStackUpdatesState() {
         if #available(iOS 16, *) { return } // legacy path only
-        let router = Router<R>(root: .home) { _ in
+        let router = OHRouter<R>() { _ in
             Text("V").eraseToAnyView()
         }
         router.replaceStack(with: [.detail(1), .detail(2)])
