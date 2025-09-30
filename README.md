@@ -50,7 +50,7 @@ import OHNavigationKit
 
 ## Quick Start
 
-### 1) Mount the router once at the root
+### 1) Mount the router once at the root (for iOS 14+)
 
 ```swift
 import SwiftUI
@@ -66,6 +66,54 @@ struct MyApp: App {
         .environmentObject(router)       // provide router to the tree
     }
   }
+}
+```
+Implement this for iOS 13 (SceneDelegate):
+
+```swift file=SceneDelegate.swift
+// SceneDelegate.swift
+import OHNavigationKit
+
+class SceneDelegate: UIResponder, UIWindowSceneDelegate {
+    var window: UIWindow?
+    var router: OHRouter<AnyRoute>!
+    func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
+        if let windowScene = scene as? UIWindowScene {
+            router = OHRouter<AnyRoute>(builder: AnyRouteBuilder)
+            let window = UIWindow(windowScene: windowScene)
+            let root = router.root {
+                ContentView()
+            }
+                .environmentObject(router)
+            window.rootViewController = UIHostingController(rootView: root)
+            self.window = window
+            window.makeKeyAndVisible()
+        }
+    }
+}
+```
+AppDelegate.swift:
+
+```swift file=AppDelegate.swift
+// AppDelegate.swift
+import OHNavigationKit
+import SwiftUI
+
+@UIApplicationMain
+class AppDelegate: UIResponder, UIApplicationDelegate {
+    var window: UIWindow?
+    var router: OHRouter<AnyRoute>!
+    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        window = UIWindow()
+        router = OHRouter<AnyRoute>(builder: AnyRouteBuilder)
+        let root = router?.root {
+            ContentView()
+        }
+            .environmentObject(router)
+        window?.rootViewController =  UIHostingController(rootView: root)
+        window?.makeKeyAndVisible()
+        return true
+    }
 }
 ```
 
